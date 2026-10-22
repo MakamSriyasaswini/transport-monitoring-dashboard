@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,7 +35,7 @@
         }
 
         main {
-            max-width: 1200px;
+            max-width: 1250px;
             margin: 25px auto;
             padding: 0 20px;
         }
@@ -99,16 +98,25 @@
         }
 
         button {
-            padding: 11px 18px;
+            padding: 10px 14px;
             background: #2563eb;
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
+            font-size: 13px;
         }
 
         button:hover {
             background: #1d4ed8;
+        }
+
+        .reset-button {
+            background: #475569;
+        }
+
+        .reset-button:hover {
+            background: #334155;
         }
 
         .table-container {
@@ -118,7 +126,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 700px;
+            min-width: 950px;
         }
 
         th, td {
@@ -132,12 +140,17 @@
             color: #12345a;
         }
 
+        tbody tr:hover {
+            background: #f8fafc;
+        }
+
         .badge {
             display: inline-block;
             padding: 4px 10px;
             border-radius: 15px;
             font-size: 12px;
             font-weight: bold;
+            white-space: nowrap;
         }
 
         .low, .normal {
@@ -150,7 +163,7 @@
             color: #92400e;
         }
 
-        .high, .diversion, .closed {
+        .high, .diversion, .stop-closed {
             background: #fee2e2;
             color: #991b1b;
         }
@@ -168,6 +181,15 @@
             background: #fef2f2;
         }
 
+        .alert h3 {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .alert p {
+            margin-bottom: 5px;
+        }
+
         .advisory {
             padding: 14px;
             background: #eff6ff;
@@ -180,6 +202,13 @@
             padding: 20px;
             text-align: center;
             color: #64748b;
+        }
+
+        .section-description {
+            color: #64748b;
+            margin-top: -8px;
+            margin-bottom: 16px;
+            font-size: 14px;
         }
 
         footer {
@@ -198,18 +227,24 @@
             section {
                 padding: 15px;
             }
+
+            .card p {
+                font-size: 24px;
+            }
         }
     </style>
 </head>
 
 <body>
+
     <header>
         <h1>Public Transport Monitoring Dashboard</h1>
-        <p>Live-style bus monitoring using simulated transport data</p>
+        <p>Monitor bus routes, arrival times, crowd levels and service alerts.</p>
         <p id="lastUpdated">Last updated: Loading...</p>
     </header>
 
     <main>
+
         <div class="summary">
             <div class="card">
                 <h3>Total Bus Routes</h3>
@@ -234,6 +269,9 @@
 
         <section>
             <h2>Bus Route Information</h2>
+            <p class="section-description">
+                Search for a route or filter buses by crowd level and service status.
+            </p>
 
             <div class="filters">
                 <input
@@ -258,7 +296,9 @@
                     <option value="Stop Closed">Stop Closed</option>
                 </select>
 
-                <button id="resetFilters">Reset Filters</button>
+                <button type="button" class="reset-button" id="resetFilters">
+                    Reset Filters
+                </button>
             </div>
 
             <div class="table-container">
@@ -271,8 +311,10 @@
                             <th>Arrival</th>
                             <th>Crowd Level</th>
                             <th>Service Status</th>
+                            <th>Disruption Details</th>
                         </tr>
                     </thead>
+
                     <tbody id="busTable"></tbody>
                 </table>
             </div>
@@ -283,7 +325,10 @@
         </section>
 
         <section>
-            <h2>Service Disruptions</h2>
+            <h2>Service Disruptions and Alerts</h2>
+            <p class="section-description">
+                Check reported delays, route diversions and temporary stop closures.
+            </p>
             <div id="disruptionList"></div>
         </section>
 
@@ -291,16 +336,17 @@
             <h2>Passenger Advisories</h2>
             <div id="advisoryList"></div>
         </section>
+
     </main>
 
     <footer>
         Public Transport Monitoring System | Academic Demonstration
         <br>
-        All bus and service information is simulated.
+        All bus routes, arrival times and service alerts are simulated.
     </footer>
 
     <script>
-        // Simulated bus route data
+        // Simulated bus route information
         const buses = [
             {
                 route: "101",
@@ -352,7 +398,7 @@
             }
         ];
 
-        // Simulated service disruptions
+        // Simulated service disruption information
         const disruptions = [
             {
                 route: "205",
@@ -367,22 +413,30 @@
             {
                 route: "520",
                 type: "Stop Closed",
-                message: "The Central Market stop on Route 520 is temporarily closed."
+                message: "The Central Market stop on Route 520 is temporarily closed. Passengers should use the next available stop."
+            },
+            {
+                route: "625",
+                type: "Delay",
+                message: "Route 625 may experience delays due to increased traffic near the airport."
             }
         ];
 
         // Simulated passenger advisories
         const advisories = [
-            "Passengers on Route 205 should allow extra travel time.",
+            "Passengers on Route 205 should allow extra travel time because of traffic delays.",
             "Route 415 passengers should board at the temporary Park Road stop.",
-            "Passengers should check crowd levels before boarding.",
+            "Passengers using Route 520 should check for alternative boarding points near Central Market.",
+            "Check the crowd level before boarding to plan a more comfortable journey.",
             "Arrival times are estimates and may change with traffic conditions."
         ];
 
+        // Return the CSS class for each badge
         function badgeClass(value) {
             return value.toLowerCase().replaceAll(" ", "-");
         }
 
+        // Display buses based on the selected filters
         function renderBuses() {
             const search = document
                 .getElementById("routeSearch")
@@ -406,29 +460,44 @@
 
             const table = document.getElementById("busTable");
 
-            table.innerHTML = filtered.map(bus => `
-                <tr>
-                    <td><strong>${bus.route}</strong></td>
-                    <td>${bus.source}</td>
-                    <td>${bus.destination}</td>
-                    <td>${bus.arrival} minutes</td>
-                    <td>
-                        <span class="badge ${badgeClass(bus.crowd)}">
-                            ${bus.crowd}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge ${badgeClass(bus.status)}">
-                            ${bus.status}
-                        </span>
-                    </td>
-                </tr>
-            `).join("");
+            table.innerHTML = filtered.map(bus => {
+                const routeDisruptions = disruptions.filter(
+                    item => item.route === bus.route
+                );
+
+                const alertButton = routeDisruptions.length > 0
+                    ? `<button type="button"
+                               onclick="showRouteAlerts('${bus.route}')">
+                           View Alerts (${routeDisruptions.length})
+                       </button>`
+                    : `<span class="badge normal">No Alerts</span>`;
+
+                return `
+                    <tr>
+                        <td><strong>${bus.route}</strong></td>
+                        <td>${bus.source}</td>
+                        <td>${bus.destination}</td>
+                        <td>${bus.arrival} minutes</td>
+                        <td>
+                            <span class="badge ${badgeClass(bus.crowd)}">
+                                ${bus.crowd}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge ${badgeClass(bus.status)}">
+                                ${bus.status}
+                            </span>
+                        </td>
+                        <td>${alertButton}</td>
+                    </tr>
+                `;
+            }).join("");
 
             document.getElementById("noResults").hidden =
                 filtered.length !== 0;
         }
 
+        // Update the summary cards
         function renderSummary() {
             document.getElementById("totalRoutes").textContent =
                 buses.length;
@@ -443,6 +512,7 @@
                 buses.filter(bus => bus.crowd === "High").length;
         }
 
+        // Display all reported service disruptions
         function renderDisruptions() {
             const list = document.getElementById("disruptionList");
 
@@ -451,13 +521,36 @@
 
                 return `
                     <div class="alert ${critical ? "critical" : ""}">
-                        <strong>Route ${item.route} - ${item.type}</strong>
+                        <h3>Route ${item.route} - ${item.type}</h3>
                         <p>${item.message}</p>
+                        <button type="button"
+                                onclick="showRouteAlerts('${item.route}')">
+                            View Route Alert
+                        </button>
                     </div>
                 `;
             }).join("");
         }
 
+        // Display alerts for a selected route
+        function showRouteAlerts(route) {
+            const routeDisruptions = disruptions.filter(
+                item => item.route === route
+            );
+
+            if (routeDisruptions.length === 0) {
+                alert(`Route ${route}: No service disruptions reported.`);
+                return;
+            }
+
+            const message = routeDisruptions.map(item =>
+                `${item.type}: ${item.message}`
+            ).join("\n\n");
+
+            alert(`Service Alerts for Route ${route}\n\n${message}`);
+        }
+
+        // Display passenger information and travel advice
         function renderAdvisories() {
             document.getElementById("advisoryList").innerHTML =
                 advisories.map(message => `
@@ -465,11 +558,13 @@
                 `).join("");
         }
 
+        // Display the current dashboard refresh time
         function updateTimestamp() {
             document.getElementById("lastUpdated").textContent =
                 "Last updated: " + new Date().toLocaleString();
         }
 
+        // Connect the search and filter controls
         document.getElementById("routeSearch")
             .addEventListener("input", renderBuses);
 
@@ -479,19 +574,23 @@
         document.getElementById("statusFilter")
             .addEventListener("change", renderBuses);
 
+        // Reset all filters
         document.getElementById("resetFilters")
             .addEventListener("click", () => {
                 document.getElementById("routeSearch").value = "";
                 document.getElementById("crowdFilter").value = "All";
                 document.getElementById("statusFilter").value = "All";
+
                 renderBuses();
             });
 
+        // Load the dashboard
         renderBuses();
         renderSummary();
         renderDisruptions();
         renderAdvisories();
         updateTimestamp();
     </script>
+
 </body>
 </html>
