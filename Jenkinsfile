@@ -1,6 +1,14 @@
 pipeline {
     agent any
 
+    parameters {
+        choice(
+            name: 'DEPLOY_TO_K8S',
+            choices: ['YES', 'NO'],
+            description: 'Choose whether to deploy to Kubernetes'
+        )
+    }
+
     environment {
         DOCKER_IMAGE = "makamsriya/transport-dashboard:latest"
     }
@@ -11,6 +19,31 @@ pipeline {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/MakamSriyasaswini/transport-monitoring-dashboard.git'
+            }
+        }
+
+        stage('Test Application') {
+            parallel {
+                stage('Test HTML') {
+                    steps {
+                        bat '''
+                            if not exist index.html exit /b 1
+                            findstr /I /C:"Transport" index.html
+                            if errorlevel 1 exit /b 1
+                        '''
+                    }
+                }
+
+                stage('Check Deployment Files') {
+                    steps {
+                        bat '''
+                            if not exist Dockerfile exit /b 1
+                            if not exist deployment.yaml exit /b 1
+                            docker --version
+                            kubectl version --client
+                        '''
+                    }
+                }
             }
         }
 
@@ -25,17 +58,23 @@ pipeline {
                 withCredentials([
                     usernamePassword(
                         credentialsId: 'dockerhub',
-                        usernameVariable: 'USER',
-                        passwordVariable: 'PASS'
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-                    bat 'docker login -u %USER% -p %PASS%'
-                    bat 'docker push %DOCKER_IMAGE%'
+                    bat '''
+                        echo %DOCKER_PASS% | docker login -u "%DOCKER_USER%" --password-stdin
+                        if errorlevel 1 exit /b 1
+                        docker push %DOCKER_IMAGE%
+                    '''
                 }
             }
         }
 
         stage('Deploy to Kubernetes') {
+            when {
+                expression { params.DEPLOY_TO_K8S == 'YES' }
+            }
             steps {
                 withCredentials([
                     file(
@@ -46,12 +85,16 @@ pipeline {
                     bat '''
                         set KUBECONFIG=%KUBECONFIG%
                         kubectl apply -f deployment.yaml --validate=false
+                        kubectl rollout status deployment/transport-dashboard
                     '''
                 }
             }
         }
 
         stage('Verify Deployment') {
+            when {
+                expression { params.DEPLOY_TO_K8S == 'YES' }
+            }
             steps {
                 withCredentials([
                     file(
@@ -61,12 +104,27 @@ pipeline {
                 ]) {
                     bat '''
                         set KUBECONFIG=%KUBECONFIG%
-                        kubectl rollout status deployment/transport-dashboard
                         kubectl get pods
                         kubectl get services
                     '''
                 }
             }
+        }
+
+        stage('Archive Build Artifacts') {
+            steps {
+                archiveArtifacts artifacts: 'index.html,Dockerfile,deployment.yaml',
+                                 fingerprint: true
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check Console Output.'
         }
     }
 }
