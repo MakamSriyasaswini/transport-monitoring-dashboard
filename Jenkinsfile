@@ -24,6 +24,7 @@ pipeline {
 
         stage('Test Application') {
             parallel {
+
                 stage('Test HTML') {
                     steps {
                         bat '''
@@ -57,13 +58,14 @@ pipeline {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'dockerhub',
+                        credentialsId: 'dockerhub-fresh',
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
                     bat '''
-                        echo %DOCKER_PASS% | docker login -u "%DOCKER_USER%" --password-stdin
+                        @echo off
+                        powershell -NoProfile -NonInteractive -Command "$env:DOCKER_PASS | docker login -u $env:DOCKER_USER --password-stdin; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
                         if errorlevel 1 exit /b 1
                         docker push %DOCKER_IMAGE%
                     '''
@@ -73,8 +75,11 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             when {
-                expression { params.DEPLOY_TO_K8S == 'YES' }
+                expression {
+                    params.DEPLOY_TO_K8S == 'YES'
+                }
             }
+
             steps {
                 withCredentials([
                     file(
@@ -93,8 +98,11 @@ pipeline {
 
         stage('Verify Deployment') {
             when {
-                expression { params.DEPLOY_TO_K8S == 'YES' }
+                expression {
+                    params.DEPLOY_TO_K8S == 'YES'
+                }
             }
+
             steps {
                 withCredentials([
                     file(
@@ -104,6 +112,7 @@ pipeline {
                 ]) {
                     bat '''
                         set KUBECONFIG=%KUBECONFIG%
+                        kubectl get deployments
                         kubectl get pods
                         kubectl get services
                     '''
@@ -113,8 +122,10 @@ pipeline {
 
         stage('Archive Build Artifacts') {
             steps {
-                archiveArtifacts artifacts: 'index.html,Dockerfile,deployment.yaml',
-                                 fingerprint: true
+                archiveArtifacts(
+                    artifacts: 'index.html,Dockerfile,deployment.yaml',
+                    fingerprint: true
+                )
             }
         }
     }
@@ -123,6 +134,7 @@ pipeline {
         success {
             echo 'Pipeline completed successfully!'
         }
+
         failure {
             echo 'Pipeline failed. Check Console Output.'
         }
