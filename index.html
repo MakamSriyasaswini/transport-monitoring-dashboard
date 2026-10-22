@@ -1,0 +1,497 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Public Transport Monitoring Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        header {
+            background: #12345a;
+            color: white;
+            padding: 25px 6%;
+        }
+
+        header h1 {
+            font-size: 27px;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            color: #dbeafe;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 25px auto;
+            padding: 0 20px;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px #0000000d;
+        }
+
+        .card h3 {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .card p {
+            font-size: 28px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        section {
+            background: white;
+            padding: 22px;
+            margin-bottom: 24px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px #0000000d;
+        }
+
+        section h2 {
+            margin-bottom: 15px;
+            color: #12345a;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        input, select {
+            padding: 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        button {
+            padding: 11px 18px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 700px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 13px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #eff6ff;
+            color: #12345a;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .low, .normal {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .moderate, .delay {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .high, .diversion, .closed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .alert {
+            padding: 14px;
+            border-left: 5px solid #f59e0b;
+            background: #fffbeb;
+            margin-bottom: 12px;
+            border-radius: 5px;
+        }
+
+        .alert.critical {
+            border-left-color: #dc2626;
+            background: #fef2f2;
+        }
+
+        .advisory {
+            padding: 14px;
+            background: #eff6ff;
+            border-left: 5px solid #2563eb;
+            border-radius: 5px;
+            margin-bottom: 12px;
+        }
+
+        .empty {
+            padding: 20px;
+            text-align: center;
+            color: #64748b;
+        }
+
+        footer {
+            text-align: center;
+            background: #12345a;
+            color: white;
+            padding: 18px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 600px) {
+            header h1 {
+                font-size: 22px;
+            }
+
+            section {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Public Transport Monitoring Dashboard</h1>
+        <p>Live-style bus monitoring using simulated transport data</p>
+        <p id="lastUpdated">Last updated: Loading...</p>
+    </header>
+
+    <main>
+        <div class="summary">
+            <div class="card">
+                <h3>Total Bus Routes</h3>
+                <p id="totalRoutes">0</p>
+            </div>
+
+            <div class="card">
+                <h3>Normal Services</h3>
+                <p id="normalServices">0</p>
+            </div>
+
+            <div class="card">
+                <h3>Delayed Services</h3>
+                <p id="delayedServices">0</p>
+            </div>
+
+            <div class="card">
+                <h3>High Crowd Level</h3>
+                <p id="highCrowd">0</p>
+            </div>
+        </div>
+
+        <section>
+            <h2>Bus Route Information</h2>
+
+            <div class="filters">
+                <input
+                    type="text"
+                    id="routeSearch"
+                    placeholder="Search route number, e.g. 101"
+                    aria-label="Search bus route"
+                >
+
+                <select id="crowdFilter" aria-label="Filter by crowd level">
+                    <option value="All">All Crowd Levels</option>
+                    <option value="Low">Low</option>
+                    <option value="Moderate">Moderate</option>
+                    <option value="High">High</option>
+                </select>
+
+                <select id="statusFilter" aria-label="Filter by service status">
+                    <option value="All">All Service Statuses</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Delayed">Delayed</option>
+                    <option value="Diversion">Diversion</option>
+                    <option value="Stop Closed">Stop Closed</option>
+                </select>
+
+                <button id="resetFilters">Reset Filters</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th>Source</th>
+                            <th>Destination</th>
+                            <th>Arrival</th>
+                            <th>Crowd Level</th>
+                            <th>Service Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="busTable"></tbody>
+                </table>
+            </div>
+
+            <p id="noResults" class="empty" hidden>
+                No buses match your filters.
+            </p>
+        </section>
+
+        <section>
+            <h2>Service Disruptions</h2>
+            <div id="disruptionList"></div>
+        </section>
+
+        <section>
+            <h2>Passenger Advisories</h2>
+            <div id="advisoryList"></div>
+        </section>
+    </main>
+
+    <footer>
+        Public Transport Monitoring System | Academic Demonstration
+        <br>
+        All bus and service information is simulated.
+    </footer>
+
+    <script>
+        // Simulated bus route data
+        const buses = [
+            {
+                route: "101",
+                source: "Central Station",
+                destination: "City Hospital",
+                arrival: 5,
+                crowd: "Low",
+                status: "Normal"
+            },
+            {
+                route: "205",
+                source: "City Mall",
+                destination: "Airport",
+                arrival: 12,
+                crowd: "Moderate",
+                status: "Delayed"
+            },
+            {
+                route: "310",
+                source: "University",
+                destination: "Central Station",
+                arrival: 8,
+                crowd: "High",
+                status: "Normal"
+            },
+            {
+                route: "415",
+                source: "Railway Station",
+                destination: "Tech Park",
+                arrival: 18,
+                crowd: "Moderate",
+                status: "Diversion"
+            },
+            {
+                route: "520",
+                source: "City Hospital",
+                destination: "Bus Terminal",
+                arrival: 3,
+                crowd: "Low",
+                status: "Stop Closed"
+            },
+            {
+                route: "625",
+                source: "Airport",
+                destination: "City Mall",
+                arrival: 15,
+                crowd: "High",
+                status: "Delayed"
+            }
+        ];
+
+        // Simulated service disruptions
+        const disruptions = [
+            {
+                route: "205",
+                type: "Delay",
+                message: "Route 205 is delayed by approximately 10 minutes due to heavy traffic."
+            },
+            {
+                route: "415",
+                type: "Diversion",
+                message: "Route 415 is diverted through Park Road because of road maintenance."
+            },
+            {
+                route: "520",
+                type: "Stop Closed",
+                message: "The Central Market stop on Route 520 is temporarily closed."
+            }
+        ];
+
+        // Simulated passenger advisories
+        const advisories = [
+            "Passengers on Route 205 should allow extra travel time.",
+            "Route 415 passengers should board at the temporary Park Road stop.",
+            "Passengers should check crowd levels before boarding.",
+            "Arrival times are estimates and may change with traffic conditions."
+        ];
+
+        function badgeClass(value) {
+            return value.toLowerCase().replaceAll(" ", "-");
+        }
+
+        function renderBuses() {
+            const search = document
+                .getElementById("routeSearch")
+                .value.trim().toLowerCase();
+
+            const crowd = document.getElementById("crowdFilter").value;
+            const status = document.getElementById("statusFilter").value;
+
+            const filtered = buses.filter(bus => {
+                const matchesRoute =
+                    bus.route.toLowerCase().includes(search);
+
+                const matchesCrowd =
+                    crowd === "All" || bus.crowd === crowd;
+
+                const matchesStatus =
+                    status === "All" || bus.status === status;
+
+                return matchesRoute && matchesCrowd && matchesStatus;
+            });
+
+            const table = document.getElementById("busTable");
+
+            table.innerHTML = filtered.map(bus => `
+                <tr>
+                    <td><strong>${bus.route}</strong></td>
+                    <td>${bus.source}</td>
+                    <td>${bus.destination}</td>
+                    <td>${bus.arrival} minutes</td>
+                    <td>
+                        <span class="badge ${badgeClass(bus.crowd)}">
+                            ${bus.crowd}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge ${badgeClass(bus.status)}">
+                            ${bus.status}
+                        </span>
+                    </td>
+                </tr>
+            `).join("");
+
+            document.getElementById("noResults").hidden =
+                filtered.length !== 0;
+        }
+
+        function renderSummary() {
+            document.getElementById("totalRoutes").textContent =
+                buses.length;
+
+            document.getElementById("normalServices").textContent =
+                buses.filter(bus => bus.status === "Normal").length;
+
+            document.getElementById("delayedServices").textContent =
+                buses.filter(bus => bus.status === "Delayed").length;
+
+            document.getElementById("highCrowd").textContent =
+                buses.filter(bus => bus.crowd === "High").length;
+        }
+
+        function renderDisruptions() {
+            const list = document.getElementById("disruptionList");
+
+            list.innerHTML = disruptions.map(item => {
+                const critical = item.type !== "Delay";
+
+                return `
+                    <div class="alert ${critical ? "critical" : ""}">
+                        <strong>Route ${item.route} - ${item.type}</strong>
+                        <p>${item.message}</p>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        function renderAdvisories() {
+            document.getElementById("advisoryList").innerHTML =
+                advisories.map(message => `
+                    <div class="advisory">${message}</div>
+                `).join("");
+        }
+
+        function updateTimestamp() {
+            document.getElementById("lastUpdated").textContent =
+                "Last updated: " + new Date().toLocaleString();
+        }
+
+        document.getElementById("routeSearch")
+            .addEventListener("input", renderBuses);
+
+        document.getElementById("crowdFilter")
+            .addEventListener("change", renderBuses);
+
+        document.getElementById("statusFilter")
+            .addEventListener("change", renderBuses);
+
+        document.getElementById("resetFilters")
+            .addEventListener("click", () => {
+                document.getElementById("routeSearch").value = "";
+                document.getElementById("crowdFilter").value = "All";
+                document.getElementById("statusFilter").value = "All";
+                renderBuses();
+            });
+
+        renderBuses();
+        renderSummary();
+        renderDisruptions();
+        renderAdvisories();
+        updateTimestamp();
+    </script>
+</body>
+</html>
